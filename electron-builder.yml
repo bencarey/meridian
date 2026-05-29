@@ -31,10 +31,18 @@ extraResources:
 dmg:
   artifactName: Meridian-${version}.${ext}
   title: Meridian ${version}
-  background: null
+  background: build/dmg_background.png
   window:
     width: 540
     height: 380
+  contents:
+    - x: 150
+      y: 190
+      type: file
+    - x: 390
+      y: 190
+      type: link
+      path: /Applications
 linux:
   target:
     - AppImage
