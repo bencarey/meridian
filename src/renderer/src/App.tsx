@@ -224,9 +224,13 @@ function App(): React.JSX.Element {
   const dismissOpeningQuote = useCallback(() => {
     setOpeningVisible(false)
     if (openingTimeoutRef.current) clearTimeout(openingTimeoutRef.current)
-    // Remove from DOM after fade-out completes
-    openingTimeoutRef.current = setTimeout(() => setOpeningQuote(null), 3200)
+    openingTimeoutRef.current = setTimeout(() => setOpeningQuote(null), 1600)
   }, [])
+
+  // Belt-and-suspenders: also dismiss whenever audio actually starts
+  useEffect(() => {
+    if (audio.isPlaying) dismissOpeningQuote()
+  }, [audio.isPlaying, dismissOpeningQuote])
 
   // Fires when timer hits zero
   const handleSessionComplete = useCallback(() => {
@@ -313,6 +317,12 @@ function App(): React.JSX.Element {
         accentColor={accentColor}
         particleColor={particleColor}
         isPlaying={audio.isPlaying}
+        sessionDurationSeconds={
+          activeDuration === null ? 60 * 60
+          : activeDuration === 'meeting' && meetingInfo ? Math.max(300, meetingInfo.secondsUntil - 60)
+          : typeof activeDuration === 'number' ? activeDuration * 60
+          : 25 * 60
+        }
         geometrySpeed={activePreset.geometrySpeed ?? 1.0}
         geometryVariant={activePreset.geometryVariant ?? 'triangles'}
         onTick={onVisualizerTick}
@@ -350,7 +360,7 @@ function App(): React.JSX.Element {
           data={openingQuote}
           visible={openingVisible}
           accentColor={accentColor}
-          fadeSpeed="3s"
+          fadeSpeed="1.5s"
         />
       )}
 
