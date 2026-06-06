@@ -149,8 +149,8 @@ export function useAudioEngine(): AudioEngine {
       }
 
       const holdTime = 2 + Math.random() * 2
-      const attackTime = 1.2
-      const releaseTime = 3.0
+      const attackTime = preset.padAttack ?? 1.2
+      const releaseTime = preset.padRelease ?? 3.0
 
       indices.forEach((idx) => {
         const freq = scale[idx]
@@ -185,7 +185,9 @@ export function useAudioEngine(): AudioEngine {
   const scheduleNextNote = useCallback(
     (ctx: AudioContext, preset: Preset, reverb: ConvolverNode, master: GainNode) => {
       if (!isRunningRef.current) return
-      const delay = 3000 + Math.random() * 9000
+      const delayMin = preset.noteDelayMin ?? 3000
+      const delayMax = preset.noteDelayMax ?? 12000
+      const delay = delayMin + Math.random() * Math.max(0, delayMax - delayMin)
       schedulerTimerRef.current = setTimeout(() => {
         if (!isRunningRef.current) return
         playPadNote(ctx, preset, reverb, master)
@@ -216,7 +218,7 @@ export function useAudioEngine(): AudioEngine {
       // --- Reverb ---
       const reverb = createReverb(ctx, 4, 2)
       const reverbGain = ctx.createGain()
-      reverbGain.gain.value = 0.6
+      reverbGain.gain.value = preset.reverbMix ?? 0.6
       reverb.connect(reverbGain)
       reverbGain.connect(master)
       reverbRef.current = reverb
@@ -256,7 +258,7 @@ export function useAudioEngine(): AudioEngine {
         noiseSource = createWhiteNoise(ctx)
       }
       const noiseGain = ctx.createGain()
-      noiseGain.gain.value = 0.12
+      noiseGain.gain.value = preset.noiseGain ?? 0.12
       const noiseFilter = ctx.createBiquadFilter()
       noiseFilter.type = 'lowpass'
       noiseFilter.frequency.value = 1200

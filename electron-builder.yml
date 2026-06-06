@@ -1,5 +1,8 @@
 appId: com.bencarey.meridian
 productName: Meridian
+# Strips com.apple.provenance (macOS 14.4+) from the packed app before signing —
+# otherwise ad-hoc codesign fails with "resource fork ... detritus not allowed".
+afterPack: scripts/afterPack.cjs
 directories:
   buildResources: build
 files:

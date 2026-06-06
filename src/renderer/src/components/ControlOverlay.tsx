@@ -1,4 +1,5 @@
 import { Preset, PresetId, DurationOption, PRESETS, PRESET_ORDER } from '../types/audio'
+import { themeInk } from '../utils/color'
 
 interface MeetingInfo {
   title: string
@@ -8,6 +9,7 @@ interface MeetingInfo {
 interface ControlOverlayProps {
   visible: boolean
   isPlaying: boolean
+  isLight?: boolean
   activePreset: Preset
   activeDuration: DurationOption
   volume: number
@@ -47,25 +49,35 @@ const NOISE_LABEL: Record<string, string> = {
 
 const FONT = "'Helvetica Neue', Helvetica, Arial, sans-serif"
 
-function Divider() {
+function Divider({ ink }: { ink: string }) {
   return (
     <div style={{
       width: 1,
       height: 16,
-      background: 'rgba(255,255,255,0.10)',
+      background: `rgba(${ink},0.10)`,
       flexShrink: 0,
       margin: '0 20px',
     }} />
   )
 }
 
+function Dot({ ink }: { ink: string }) {
+  return <span style={{ color: `rgba(${ink},0.15)`, fontSize: '10px', fontFamily: FONT }}>·</span>
+}
+
 export function ControlOverlay({
-  visible, isPlaying, activePreset, activeDuration, volume,
+  visible, isPlaying, isLight = false, activePreset, activeDuration, volume,
   secondsRemaining, meetingInfo, onPresetChange, onDurationChange, onTogglePlay, onVolumeChange,
 }: ControlOverlayProps) {
   const accent = activePreset.accentColor
   const brain = getBrainState(activePreset.binauralHz)
   const noiseLabel = NOISE_LABEL[activePreset.noiseType] ?? activePreset.noiseType.toUpperCase()
+
+  // Theme tokens — `ink` is the foreground rgb triplet for the active theme
+  const ink = themeInk(isLight)
+  const barBg = isLight ? 'rgba(244,241,233,0.92)' : 'rgba(6, 6, 5, 0.94)'
+  const barBorder = isPlaying ? `${accent}55` : `rgba(${ink},${isLight ? 0.1 : 0.07})`
+  const iconColor = `rgb(${ink})`
 
   const baseText: React.CSSProperties = {
     fontFamily: FONT,
@@ -84,9 +96,9 @@ export function ControlOverlay({
         bottom: 0, left: 0, right: 0,
         zIndex: 20,
         opacity: visible ? 1 : 0.10,
-        transition: 'opacity 0.9s ease',
-        background: 'rgba(6, 6, 5, 0.94)',
-        borderTop: `1px solid ${isPlaying ? `${accent}55` : 'rgba(255,255,255,0.07)'}`,
+        transition: 'opacity 0.9s ease, background 0.6s ease, border-color 0.6s ease',
+        background: barBg,
+        borderTop: `1px solid ${barBorder}`,
       } as React.CSSProperties}
     >
       {/* ── TECHNICAL DATA STRIP ─────────────────────────────────── */}
@@ -109,25 +121,25 @@ export function ControlOverlay({
           <span style={{ ...baseText, fontSize: '10px', color: accent, letterSpacing: '0.20em', fontWeight: 500 }}>
             {activePreset.name}
           </span>
-          <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '10px', fontFamily: FONT }}>·</span>
-          <span style={{ ...baseText, color: 'rgba(255,255,255,0.50)' }}>
+          <Dot ink={ink} />
+          <span style={{ ...baseText, color: `rgba(${ink},0.50)` }}>
             {brain.symbol}&thinsp;{brain.name}
           </span>
-          <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '10px', fontFamily: FONT }}>·</span>
-          <span style={{ ...baseText, color: 'rgba(255,255,255,0.50)' }}>
+          <Dot ink={ink} />
+          <span style={{ ...baseText, color: `rgba(${ink},0.50)` }}>
             {activePreset.binauralHz} Hz binaural
           </span>
-          <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '10px', fontFamily: FONT }}>·</span>
-          <span style={{ ...baseText, color: 'rgba(255,255,255,0.35)' }}>
+          <Dot ink={ink} />
+          <span style={{ ...baseText, color: `rgba(${ink},0.35)` }}>
             carrier {activePreset.carrierLeft} / {activePreset.carrierRight} Hz
           </span>
-          <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '10px', fontFamily: FONT }}>·</span>
-          <span style={{ ...baseText, color: 'rgba(255,255,255,0.35)' }}>
+          <Dot ink={ink} />
+          <span style={{ ...baseText, color: `rgba(${ink},0.35)` }}>
             {noiseLabel} noise
           </span>
           {meetingActive && meetingInfo && (
             <>
-              <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '10px', fontFamily: FONT }}>·</span>
+              <Dot ink={ink} />
               <span style={{ ...baseText, color: `${accent}bb`, maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {meetingInfo.title}
               </span>
@@ -140,14 +152,14 @@ export function ControlOverlay({
               fontSize: '11px',
               fontWeight: 300,
               letterSpacing: '0.06em',
-              color: 'rgba(255,255,255,0.45)',
+              color: `rgba(${ink},0.45)`,
               fontVariantNumeric: 'tabular-nums',
             }}>
               {String(Math.floor(secondsRemaining / 60)).padStart(2, '0')}:{String(secondsRemaining % 60).padStart(2, '0')}
             </span>
           )}
         </div>
-        <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '10px 24px 0' }} />
+        <div style={{ height: 1, background: `rgba(${ink},0.05)`, margin: '10px 24px 0' }} />
       </div>
 
       {/* ── CONTROL ROW ───────────────────────────────────────────── */}
@@ -170,9 +182,9 @@ export function ControlOverlay({
                 aria-label={`Switch to ${preset.name}`}
                 style={{
                   ...baseText,
-                  background: active ? 'rgba(255,255,255,0.06)' : 'transparent',
+                  background: active ? `rgba(${ink},0.06)` : 'transparent',
                   border: 'none',
-                  color: active ? accent : 'rgba(255,255,255,0.28)',
+                  color: active ? accent : `rgba(${ink},0.28)`,
                   padding: '5px 10px',
                   cursor: 'pointer',
                   borderRadius: '2px',
@@ -186,7 +198,7 @@ export function ControlOverlay({
           })}
         </div>
 
-        <Divider />
+        <Divider ink={ink} />
 
         {/* Duration selector */}
         <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
@@ -201,9 +213,9 @@ export function ControlOverlay({
                   ...baseText,
                   fontSize: '10px',
                   letterSpacing: '0.08em',
-                  background: active ? 'rgba(255,255,255,0.06)' : 'transparent',
+                  background: active ? `rgba(${ink},0.06)` : 'transparent',
                   border: 'none',
-                  color: active ? 'rgba(255,255,255,0.80)' : 'rgba(255,255,255,0.25)',
+                  color: active ? `rgba(${ink},0.80)` : `rgba(${ink},0.25)`,
                   padding: '5px 9px',
                   cursor: 'pointer',
                   borderRadius: '2px',
@@ -230,7 +242,7 @@ export function ControlOverlay({
                 letterSpacing: '0.08em',
                 background: meetingActive ? `${accent}18` : 'transparent',
                 border: meetingActive ? `1px solid ${accent}44` : '1px solid transparent',
-                color: meetingActive ? accent : 'rgba(255,255,255,0.28)',
+                color: meetingActive ? accent : `rgba(${ink},0.28)`,
                 padding: '4px 9px',
                 cursor: 'pointer',
                 borderRadius: '2px',
@@ -246,13 +258,13 @@ export function ControlOverlay({
           )}
         </div>
 
-        <Divider />
+        <Divider ink={ink} />
 
         {/* Volume */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '110px' }}>
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, opacity: 0.35 }}>
-            <path d="M1 4.5H3L6 2V10L3 7.5H1V4.5Z" fill="white" />
-            <path d="M8 4C8.8 4.6 9.2 5.3 9.2 6C9.2 6.7 8.8 7.4 8 8" stroke="white" strokeWidth="0.9" strokeLinecap="round" />
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0, opacity: 0.45 }}>
+            <path d="M1 4.5H3L6 2V10L3 7.5H1V4.5Z" fill={iconColor} />
+            <path d="M8 4C8.8 4.6 9.2 5.3 9.2 6C9.2 6.7 8.8 7.4 8 8" stroke={iconColor} strokeWidth="0.9" strokeLinecap="round" />
           </svg>
           <input
             type="range" min={0} max={1} step={0.01} value={volume}
@@ -262,7 +274,7 @@ export function ControlOverlay({
               appearance: 'none',
               WebkitAppearance: 'none',
               height: '2px',
-              background: `linear-gradient(to right, ${accent} ${volume * 100}%, rgba(255,255,255,0.12) ${volume * 100}%)`,
+              background: `linear-gradient(to right, ${accent} ${volume * 100}%, rgba(${ink},0.12) ${volume * 100}%)`,
               borderRadius: '1px',
               outline: 'none',
               cursor: 'pointer',
@@ -270,7 +282,7 @@ export function ControlOverlay({
           />
         </div>
 
-        <Divider />
+        <Divider ink={ink} />
 
         {/* Begin / End */}
         <button

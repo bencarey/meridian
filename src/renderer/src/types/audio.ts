@@ -1,4 +1,4 @@
-export type PresetId = 'deep-focus' | 'flow-state' | 'creative' | 'power' | 'build';
+export type PresetId = 'deep-focus' | 'flow-state' | 'creative' | 'power' | 'build' | 'minimalist';
 export type DurationOption = 25 | 45 | 60 | 90 | 'meeting' | null;
 
 export interface Preset {
@@ -14,7 +14,15 @@ export interface Preset {
   scale: number[];     // frequencies in Hz
   rootNote: number;    // root note freq for sub-bass
   geometrySpeed?: number;
-  geometryVariant?: 'triangles' | 'circles' | 'mandala' | 'crystalline' | 'grid';
+  geometryVariant?: 'triangles' | 'circles' | 'mandala' | 'crystalline' | 'grid' | 'minimal';
+  theme?: 'dark' | 'light';   // visual theme — default 'dark'
+  // Optional generative-audio overrides (defaults applied in useAudioEngine)
+  padAttack?: number;         // s, note fade-in  (default 1.2)
+  padRelease?: number;        // s, note fade-out (default 3.0)
+  noteDelayMin?: number;      // ms, min gap between pad notes (default 3000)
+  noteDelayMax?: number;      // ms, max gap between pad notes (default 12000)
+  noiseGain?: number;         // colored-noise level (default 0.12)
+  reverbMix?: number;         // reverb send level  (default 0.6)
   bgColor: string;
   orbColor: string;
   accentColor: string;
@@ -113,6 +121,32 @@ export const PRESETS: Record<PresetId, Preset> = {
     accentColor: '#00B4D8',
     particleColor: 'rgba(0,180,216,0.5)',
   },
+  'minimalist': {
+    id: 'minimalist',
+    name: 'MINIMALIST',
+    label: 'MNMLST',
+    description: 'Ambient minimalism — warm, modern, generative calm',
+    binauralHz: 7.83,        // Schumann resonance — grounding theta
+    carrierLeft: 180,        // low, warm carrier
+    carrierRight: 187.83,    // 7.83 Hz binaural difference
+    noiseType: 'pink',
+    noiseGain: 0.05,         // barely-there warm texture
+    droneHz: 65.41,          // C2 — warm, grounding
+    scale: [130.81, 146.83, 164.81, 196.00, 220.00, 261.63, 293.66, 329.63], // C major pentatonic (C D E G A) — warm mid register
+    rootNote: 130.81,        // C3
+    padAttack: 2.6,          // slow Eno-style bloom
+    padRelease: 6.5,         // long ambient tails
+    noteDelayMin: 5000,      // sparse — lots of space
+    noteDelayMax: 16000,
+    reverbMix: 0.85,         // wet, spacious washes
+    geometrySpeed: 0.6,      // slow, calm motion
+    geometryVariant: 'minimal',
+    theme: 'light',
+    bgColor: '#F2EFE7',      // warm cream (Anthropic-style)
+    orbColor: '#E6DFD0',     // soft warm sand glow
+    accentColor: '#33312C',  // warm graphite ink (Rams restraint)
+    particleColor: 'rgba(80,76,68,0.30)', // subtle dark specks
+  },
 };
 
-export const PRESET_ORDER: PresetId[] = ['deep-focus', 'flow-state', 'creative', 'power', 'build'];
+export const PRESET_ORDER: PresetId[] = ['deep-focus', 'flow-state', 'creative', 'power', 'build', 'minimalist'];
