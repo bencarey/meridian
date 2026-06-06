@@ -1,4 +1,5 @@
 import { Preset, PresetId, DurationOption, PRESETS, PRESET_ORDER } from '../types/audio'
+import { themeInk } from '../utils/color'
 
 interface MeetingInfo {
   title: string
@@ -60,6 +61,10 @@ function Divider({ ink }: { ink: string }) {
   )
 }
 
+function Dot({ ink }: { ink: string }) {
+  return <span style={{ color: `rgba(${ink},0.15)`, fontSize: '10px', fontFamily: FONT }}>·</span>
+}
+
 export function ControlOverlay({
   visible, isPlaying, isLight = false, activePreset, activeDuration, volume,
   secondsRemaining, meetingInfo, onPresetChange, onDurationChange, onTogglePlay, onVolumeChange,
@@ -69,10 +74,10 @@ export function ControlOverlay({
   const noiseLabel = NOISE_LABEL[activePreset.noiseType] ?? activePreset.noiseType.toUpperCase()
 
   // Theme tokens — `ink` is the foreground rgb triplet for the active theme
-  const ink = isLight ? '40,37,30' : '255,255,255'
+  const ink = themeInk(isLight)
   const barBg = isLight ? 'rgba(244,241,233,0.92)' : 'rgba(6, 6, 5, 0.94)'
   const barBorder = isPlaying ? `${accent}55` : `rgba(${ink},${isLight ? 0.1 : 0.07})`
-  const iconColor = isLight ? '#28251e' : 'white'
+  const iconColor = `rgb(${ink})`
 
   const baseText: React.CSSProperties = {
     fontFamily: FONT,
@@ -116,25 +121,25 @@ export function ControlOverlay({
           <span style={{ ...baseText, fontSize: '10px', color: accent, letterSpacing: '0.20em', fontWeight: 500 }}>
             {activePreset.name}
           </span>
-          <span style={{ color: `rgba(${ink},0.15)`, fontSize: '10px', fontFamily: FONT }}>·</span>
+          <Dot ink={ink} />
           <span style={{ ...baseText, color: `rgba(${ink},0.50)` }}>
             {brain.symbol}&thinsp;{brain.name}
           </span>
-          <span style={{ color: `rgba(${ink},0.15)`, fontSize: '10px', fontFamily: FONT }}>·</span>
+          <Dot ink={ink} />
           <span style={{ ...baseText, color: `rgba(${ink},0.50)` }}>
             {activePreset.binauralHz} Hz binaural
           </span>
-          <span style={{ color: `rgba(${ink},0.15)`, fontSize: '10px', fontFamily: FONT }}>·</span>
+          <Dot ink={ink} />
           <span style={{ ...baseText, color: `rgba(${ink},0.35)` }}>
             carrier {activePreset.carrierLeft} / {activePreset.carrierRight} Hz
           </span>
-          <span style={{ color: `rgba(${ink},0.15)`, fontSize: '10px', fontFamily: FONT }}>·</span>
+          <Dot ink={ink} />
           <span style={{ ...baseText, color: `rgba(${ink},0.35)` }}>
             {noiseLabel} noise
           </span>
           {meetingActive && meetingInfo && (
             <>
-              <span style={{ color: `rgba(${ink},0.15)`, fontSize: '10px', fontFamily: FONT }}>·</span>
+              <Dot ink={ink} />
               <span style={{ ...baseText, color: `${accent}bb`, maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {meetingInfo.title}
               </span>

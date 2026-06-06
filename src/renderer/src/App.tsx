@@ -5,7 +5,7 @@ import { useAudioEngine } from './hooks/useAudioEngine'
 import { useTimer } from './hooks/useTimer'
 import { PRESETS, PresetId, DurationOption, Preset } from './types/audio'
 import { randomQuote } from './data/quotes'
-import { hexToRgb, rgbToHex } from './utils/color'
+import { hexToRgb, rgbToHex, themeInk, luminance } from './utils/color'
 
 interface MeetingInfo {
   title: string
@@ -39,9 +39,10 @@ function QuoteOverlay({
   isLight?: boolean
   onClick?: () => void
 }) {
-  const quoteColor = isLight ? 'rgba(40,37,30,0.78)' : 'rgba(255,255,255,0.68)'
-  const dividerColor = isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.12)'
-  const meetingColor = isLight ? 'rgba(40,37,30,0.42)' : 'rgba(255,255,255,0.35)'
+  const ink = themeInk(isLight)
+  const quoteColor = `rgba(${ink},${isLight ? 0.78 : 0.68})`
+  const dividerColor = `rgba(${ink},0.12)`
+  const meetingColor = `rgba(${ink},${isLight ? 0.42 : 0.35})`
   return (
     <div
       onClick={onClick}
@@ -297,6 +298,12 @@ function App(): React.JSX.Element {
 
   const isLight = activePreset.theme === 'light'
 
+  // The header sits over the canvas, whose background color *lerps* between presets.
+  // Pick its ink from the live background luminance (not the target theme) so the text
+  // stays legible throughout the dark↔cream transition instead of flashing invisible.
+  const headerLight = luminance(bgColor) > 140
+  const headerInk = themeInk(headerLight)
+
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative', background: '#0a0a08' }}>
       <Visualizer
@@ -319,7 +326,7 @@ function App(): React.JSX.Element {
       } as React.CSSProperties}>
         <span style={{
           fontSize: '11px', fontFamily: FONT, fontWeight: 500, letterSpacing: '0.25em',
-          color: isLight ? 'rgba(40,37,30,0.78)' : 'rgba(255,255,255,0.65)', textTransform: 'uppercase', userSelect: 'none',
+          color: `rgba(${headerInk},${headerLight ? 0.78 : 0.65})`, textTransform: 'uppercase', userSelect: 'none',
           WebkitAppRegion: 'no-drag', transition: 'color 0.6s ease',
         } as React.CSSProperties}>
           Meridian
@@ -328,9 +335,7 @@ function App(): React.JSX.Element {
         {headerTime && (
           <span style={{
             fontSize: '13px', fontFamily: FONT, fontWeight: 200, letterSpacing: '0.05em',
-            color: isLight
-              ? (audio.isPlaying ? 'rgba(40,37,30,0.66)' : 'rgba(40,37,30,0.38)')
-              : (audio.isPlaying ? 'rgba(255,255,255,0.60)' : 'rgba(255,255,255,0.28)'),
+            color: `rgba(${headerInk},${headerLight ? (audio.isPlaying ? 0.66 : 0.38) : (audio.isPlaying ? 0.60 : 0.28)})`,
             fontVariantNumeric: 'tabular-nums', userSelect: 'none',
             WebkitAppRegion: 'no-drag', transition: 'color 0.5s ease',
           } as React.CSSProperties}>

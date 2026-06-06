@@ -19,3 +19,15 @@ export function rgba(hex: string, a: number): string {
   const [r, g, b] = hexToRgb(hex)
   return `rgba(${r},${g},${b},${Math.max(0, a)})`
 }
+
+// Foreground "ink" rgb triplet for a theme — use as `rgba(${themeInk(isLight)}, a)`
+// or `rgb(${themeInk(isLight)})`. Single source of truth for light/dark text color.
+export function themeInk(isLight: boolean): string {
+  return isLight ? '40,37,30' : '255,255,255'
+}
+
+// Perceived luminance (0–255) of a hex color, for picking legible ink over a background.
+export function luminance(hex: string): number {
+  const [r, g, b] = hexToRgb(hex)
+  return 0.299 * r + 0.587 * g + 0.114 * b
+}
