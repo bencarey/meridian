@@ -50,12 +50,3 @@ button {
   user-select: none;
   -webkit-user-select: none;
 }
-
-/* Drag region for macOS frameless window */
-.drag-region {
-  -webkit-app-region: drag;
-}
-
-.no-drag {
-  -webkit-app-region: no-drag;
-}

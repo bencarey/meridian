@@ -1,12 +1,16 @@
 import { useRef, useEffect } from 'react'
+import { rgba } from '../utils/color'
 
 const PHI = 1.618033988749895
+
+// Single restrained warm accent for the minimal (light) variant — Braun/Rams "one pop"
+const RAMS_ACCENT = '#CC6B49'
 
 interface Particle {
   x: number; y: number; vx: number; vy: number; life: number; maxLife: number; size: number
 }
 
-type GeometryVariant = 'triangles' | 'circles' | 'mandala' | 'crystalline' | 'grid'
+type GeometryVariant = 'triangles' | 'circles' | 'mandala' | 'crystalline' | 'grid' | 'minimal'
 
 interface VisualizerProps {
   bgColor: string
@@ -16,18 +20,8 @@ interface VisualizerProps {
   isPlaying: boolean
   geometrySpeed?: number
   geometryVariant?: GeometryVariant
+  theme?: 'dark' | 'light'
   onTick?: () => void
-}
-
-function hexToRgb(hex: string): [number, number, number] {
-  const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
-  if (!r) return [0, 0, 0]
-  return [parseInt(r[1], 16), parseInt(r[2], 16), parseInt(r[3], 16)]
-}
-
-function rgba(hex: string, a: number): string {
-  const [r, g, b] = hexToRgb(hex)
-  return `rgba(${r},${g},${b},${Math.max(0, a)})`
 }
 
 function easeIn(t: number): number {
@@ -127,7 +121,7 @@ function drawTrianglesVariant(
   ctx: CanvasRenderingContext2D,
   cx: number, cy: number,
   B: number, t: number, spd: number,
-  accent: string, orb: string,
+  accent: string, _orb: string,
   bp: number
 ): void {
   // 5 nested triangle pairs (up + down), innermost brightest — bindu build
@@ -336,7 +330,7 @@ function drawMandalaVariant(
   ctx: CanvasRenderingContext2D,
   cx: number, cy: number,
   B: number, t: number, spd: number,
-  accent: string, orb: string,
+  accent: string, _orb: string,
   bp: number
 ): void {
   // Outer ring: 12 petals
@@ -458,7 +452,7 @@ function drawCrystallineVariant(
   ctx: CanvasRenderingContext2D,
   cx: number, cy: number,
   B: number, t: number, spd: number,
-  accent: string, orb: string,
+  accent: string, _orb: string,
   bp: number
 ): void {
   // Outer circle + 12-gon
@@ -718,11 +712,112 @@ function drawGridVariant(
   }
 }
 
+// ── VARIANT: MINIMAL (minimalist) — Dieter Rams grid + Eno/Fred-Again ambient ─
+// Flat, no glow, dark ink on a cream field. Restraint over ornament.
+
+function drawMinimalVariant(
+  ctx: CanvasRenderingContext2D,
+  cx: number, cy: number,
+  B: number, t: number, spd: number,
+  accent: string, _orb: string,
+  bp: number
+): void {
+  ctx.setLineDash([])
+  ctx.shadowBlur = 0
+
+  // 1. Braun dot-grid — quiet order, revealed first
+  const gridA = elementAlpha(bp, 0.03, 0.22) * 0.11
+  if (gridA > 0.003) {
+    const step = B * 0.18
+    const reach = Math.ceil((B * 1.2) / step)
+    ctx.fillStyle = rgba(accent, gridA)
+    for (let i = -reach; i <= reach; i++) {
+      for (let j = -reach; j <= reach; j++) {
+        const x = cx + i * step
+        const y = cy + j * step
+        if (Math.hypot(x - cx, y - cy) > B * 1.12) continue
+        ctx.beginPath()
+        ctx.arc(x, y, 0.9, 0, Math.PI * 2)
+        ctx.fill()
+      }
+    }
+  }
+
+  // 2. Outer precise circle
+  const outerA = elementAlpha(bp, 0.10, 0.16)
+  if (outerA > 0.01) {
+    ctx.strokeStyle = rgba(accent, outerA * 0.34)
+    ctx.lineWidth = 0.8
+    ctx.beginPath(); ctx.arc(cx, cy, B, 0, Math.PI * 2); ctx.stroke()
+  }
+
+  // 3. Tick ring (Braun clock face) — slow rotation
+  const tickA = elementAlpha(bp, 0.22, 0.16)
+  if (tickA > 0.01) {
+    const ticks = 60
+    const rot = t * 0.004 * spd
+    ctx.lineWidth = 0.6
+    for (let i = 0; i < ticks; i++) {
+      const ang = (i / ticks) * Math.PI * 2 + rot
+      const major = i % 5 === 0
+      const r1 = B * (major ? 0.92 : 0.955)
+      ctx.strokeStyle = rgba(accent, tickA * (major ? 0.32 : 0.20))
+      ctx.beginPath()
+      ctx.moveTo(cx + r1 * Math.cos(ang), cy + r1 * Math.sin(ang))
+      ctx.lineTo(cx + B * Math.cos(ang), cy + B * Math.sin(ang))
+      ctx.stroke()
+    }
+  }
+
+  // 4. Inner golden-ratio circles
+  const innerA = elementAlpha(bp, 0.34, 0.16)
+  if (innerA > 0.01) {
+    ctx.strokeStyle = rgba(accent, innerA * 0.22)
+    ctx.lineWidth = 0.7
+    ctx.beginPath(); ctx.arc(cx, cy, B / PHI, 0, Math.PI * 2); ctx.stroke()
+    ctx.strokeStyle = rgba(accent, innerA * 0.15)
+    ctx.beginPath(); ctx.arc(cx, cy, B / (PHI * PHI), 0, Math.PI * 2); ctx.stroke()
+  }
+
+  // 5. Eno horizon strata — faint horizontal layers
+  const stratA = elementAlpha(bp, 0.58, 0.18) * 0.085
+  if (stratA > 0.003) {
+    ctx.strokeStyle = rgba(accent, stratA)
+    ctx.lineWidth = 0.5
+    for (const off of [-0.34, -0.12, 0.12, 0.34]) {
+      const y = cy + B * off
+      ctx.beginPath(); ctx.moveTo(cx - B * 0.86, y); ctx.lineTo(cx + B * 0.86, y); ctx.stroke()
+    }
+  }
+
+  // 6. Slow sweep hand + warm travelling node — the generative, evolving motion
+  const sweepA = elementAlpha(bp, 0.28, 0.16)
+  if (sweepA > 0.01) {
+    const ang = t * 0.05 * spd
+    ctx.strokeStyle = rgba(accent, sweepA * 0.28)
+    ctx.lineWidth = 0.9
+    ctx.beginPath()
+    ctx.moveTo(cx, cy)
+    ctx.lineTo(cx + B * 0.98 * Math.cos(ang), cy + B * 0.98 * Math.sin(ang))
+    ctx.stroke()
+    ctx.fillStyle = rgba(RAMS_ACCENT, sweepA * 0.9)
+    ctx.beginPath(); ctx.arc(cx + B * Math.cos(ang), cy + B * Math.sin(ang), 3, 0, Math.PI * 2); ctx.fill()
+  }
+
+  // 7. Center accent dot — the single Rams "pop", gentle breath
+  const dotA = elementAlpha(bp, 0.18, 0.14)
+  if (dotA > 0.01) {
+    const pulse = 1 + 0.22 * Math.sin(t * 0.8) * dotA
+    ctx.fillStyle = rgba(RAMS_ACCENT, dotA * 0.95)
+    ctx.beginPath(); ctx.arc(cx, cy, 3 * pulse, 0, Math.PI * 2); ctx.fill()
+  }
+}
+
 // ── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
 export function Visualizer({
   bgColor, orbColor, accentColor, particleColor,
-  isPlaying, geometrySpeed = 1.0, geometryVariant = 'triangles', onTick
+  isPlaying, geometrySpeed = 1.0, geometryVariant = 'triangles', theme = 'dark', onTick
 }: VisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const timeRef = useRef(0)
@@ -737,6 +832,7 @@ export function Visualizer({
   const isPlayingRef = useRef(isPlaying)
   const geometrySpeedRef = useRef(geometrySpeed)
   const geometryVariantRef = useRef(geometryVariant)
+  const themeRef = useRef(theme)
   const onTickRef = useRef(onTick)
 
   bgColorRef.current = bgColor
@@ -746,6 +842,7 @@ export function Visualizer({
   isPlayingRef.current = isPlaying
   geometrySpeedRef.current = geometrySpeed
   geometryVariantRef.current = geometryVariant
+  themeRef.current = theme
   onTickRef.current = onTick
 
   useEffect(() => {
@@ -801,8 +898,9 @@ export function Visualizer({
       ctx.fillStyle = bg
       ctx.fillRect(0, 0, W, H)
 
-      // Ambient glow
-      const glowAlpha = 0.12 + (playing ? 0.18 : 0) * bp
+      // Ambient glow — far more restrained on the light theme
+      const isLight = themeRef.current === 'light'
+      const glowAlpha = (isLight ? 0.05 : 0.12) + (playing ? (isLight ? 0.05 : 0.18) : 0) * bp
       const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, base * 2.2)
       glow.addColorStop(0, rgba(orb, glowAlpha * 0.55))
       glow.addColorStop(0.45, rgba(orb, glowAlpha * 0.18))
@@ -847,6 +945,8 @@ export function Visualizer({
         drawCrystallineVariant(ctx, cx, cy, B, t, spd, accent, orb, bp)
       } else if (variant === 'grid') {
         drawGridVariant(ctx, cx, cy, B, t, spd, accent, orb, bp)
+      } else if (variant === 'minimal') {
+        drawMinimalVariant(ctx, cx, cy, B, t, spd, accent, orb, bp)
       }
 
       onTickRef.current?.()
