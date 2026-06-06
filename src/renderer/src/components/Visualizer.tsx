@@ -18,6 +18,7 @@ interface VisualizerProps {
   accentColor: string
   particleColor: string
   isPlaying: boolean
+  sessionDurationSeconds?: number   // drives how slowly the geometry builds
   geometrySpeed?: number
   geometryVariant?: GeometryVariant
   theme?: 'dark' | 'light'
@@ -817,7 +818,8 @@ function drawMinimalVariant(
 
 export function Visualizer({
   bgColor, orbColor, accentColor, particleColor,
-  isPlaying, geometrySpeed = 1.0, geometryVariant = 'triangles', theme = 'dark', onTick
+  isPlaying, sessionDurationSeconds = 25 * 60,
+  geometrySpeed = 1.0, geometryVariant = 'triangles', theme = 'dark', onTick
 }: VisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const timeRef = useRef(0)
@@ -830,6 +832,7 @@ export function Visualizer({
   const accentColorRef = useRef(accentColor)
   const particleColorRef = useRef(particleColor)
   const isPlayingRef = useRef(isPlaying)
+  const sessionDurationRef = useRef(sessionDurationSeconds)
   const geometrySpeedRef = useRef(geometrySpeed)
   const geometryVariantRef = useRef(geometryVariant)
   const themeRef = useRef(theme)
@@ -840,6 +843,7 @@ export function Visualizer({
   accentColorRef.current = accentColor
   particleColorRef.current = particleColor
   isPlayingRef.current = isPlaying
+  sessionDurationRef.current = sessionDurationSeconds
   geometrySpeedRef.current = geometrySpeed
   geometryVariantRef.current = geometryVariant
   themeRef.current = theme
@@ -874,7 +878,11 @@ export function Visualizer({
       const t = timeRef.current
       const playing = isPlayingRef.current
 
-      const bpSpeed = playing ? 1 / 1080 : -1 / 240
+      // Build geometry over the full session duration so new elements
+      // emerge throughout — not fully built in 18 seconds then static.
+      // At ~60 fps: sessionDurationSeconds * 60 frames = full build.
+      const dur = sessionDurationRef.current ?? 25 * 60
+      const bpSpeed = playing ? 1 / (dur * 60) : -1 / 240
       buildProgressRef.current = Math.max(0, Math.min(1, buildProgressRef.current + bpSpeed))
       const bp = buildProgressRef.current
 
