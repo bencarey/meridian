@@ -1,6 +1,6 @@
 {
   "name": "meridian",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "Focus soundscape app — generative ambient music with sacred geometry visualizer",
   "main": "./out/main/index.js",
   "author": "Ben Carey",
