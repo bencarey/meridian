@@ -1,4 +1,4 @@
-export type PresetId = 'deep-focus' | 'flow-state' | 'creative' | 'power' | 'build' | 'minimalist';
+export type PresetId = 'deep-focus' | 'flow-state' | 'creative' | 'power' | 'build' | 'minimalist' | 'wabi-sabi';
 export type DurationOption = 25 | 45 | 60 | 90 | 'meeting' | null;
 
 export interface Preset {
@@ -14,7 +14,7 @@ export interface Preset {
   scale: number[];     // frequencies in Hz
   rootNote: number;    // root note freq for sub-bass
   geometrySpeed?: number;
-  geometryVariant?: 'triangles' | 'circles' | 'mandala' | 'crystalline' | 'grid' | 'minimal';
+  geometryVariant?: 'triangles' | 'circles' | 'mandala' | 'crystalline' | 'grid' | 'minimal' | 'wabi';
   theme?: 'dark' | 'light';   // visual theme — default 'dark'
   // Optional generative-audio overrides (defaults applied in useAudioEngine)
   padAttack?: number;         // s, note fade-in  (default 1.2)
@@ -147,6 +147,32 @@ export const PRESETS: Record<PresetId, Preset> = {
     accentColor: '#33312C',  // warm graphite ink (Rams restraint)
     particleColor: 'rgba(80,76,68,0.30)', // subtle dark specks
   },
+  'wabi-sabi': {
+    id: 'wabi-sabi',
+    name: 'WABI-SABI',
+    label: 'WABI',
+    description: 'Japandi stillness — imperfect, impermanent, contemplative',
+    binauralHz: 5.5,         // deep theta — meditative stillness
+    carrierLeft: 170,        // low, woody carrier
+    carrierRight: 175.5,     // 5.5 Hz binaural difference
+    noiseType: 'brown',
+    noiseGain: 0.04,         // soft, earthy warmth
+    droneHz: 55.00,          // A1 — deep, grounding
+    scale: [220.00, 261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33], // A minor pentatonic (A C D E G) — warm, wistful
+    rootNote: 220.00,        // A3
+    padAttack: 3.5,          // very slow brush-like bloom
+    padRelease: 8.0,         // long, impermanent decay
+    noteDelayMin: 7000,      // very sparse — negative space (ma)
+    noteDelayMax: 20000,
+    reverbMix: 0.9,          // deep temple-hall resonance
+    geometrySpeed: 0.45,     // very slow, still
+    geometryVariant: 'wabi',
+    theme: 'light',
+    bgColor: '#E9E2D4',      // warm oatmeal / unbleached clay
+    orbColor: '#D8CDB8',     // soft taupe glow
+    accentColor: '#3A352C',  // warm sumi-ink charcoal
+    particleColor: 'rgba(90,80,64,0.22)', // earthy dust motes
+  },
 };
 
-export const PRESET_ORDER: PresetId[] = ['deep-focus', 'flow-state', 'creative', 'power', 'build', 'minimalist'];
+export const PRESET_ORDER: PresetId[] = ['deep-focus', 'flow-state', 'creative', 'power', 'build', 'minimalist', 'wabi-sabi'];

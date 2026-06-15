@@ -5,12 +5,14 @@ const PHI = 1.618033988749895
 
 // Single restrained warm accent for the minimal (light) variant — Braun/Rams "one pop"
 const RAMS_ACCENT = '#CC6B49'
+// Muted terracotta/clay accent for the wabi-sabi variant — the one warm note (a hanko seal)
+const WABI_ACCENT = '#A86C4F'
 
 interface Particle {
   x: number; y: number; vx: number; vy: number; life: number; maxLife: number; size: number
 }
 
-type GeometryVariant = 'triangles' | 'circles' | 'mandala' | 'crystalline' | 'grid' | 'minimal'
+type GeometryVariant = 'triangles' | 'circles' | 'mandala' | 'crystalline' | 'grid' | 'minimal' | 'wabi'
 
 interface VisualizerProps {
   bgColor: string
@@ -814,6 +816,100 @@ function drawMinimalVariant(
   }
 }
 
+// ── VARIANT: WABI (wabi-sabi) — ensō brush circle, Japandi stillness ──────────
+// Imperfect, asymmetric, hand-drawn. Flat sumi-ink on warm clay. Lots of negative space.
+
+function drawWabiVariant(
+  ctx: CanvasRenderingContext2D,
+  cx: number, cy: number,
+  B: number, t: number, spd: number,
+  accent: string, _orb: string,
+  bp: number
+): void {
+  ctx.setLineDash([])
+  ctx.shadowBlur = 0
+
+  // Off-centre anchor — wabi-sabi prizes asymmetry over balance
+  const ox = cx - B * 0.06
+  const oy = cy - B * 0.04
+
+  // 1. Horizon — a single low, asymmetric line (Japandi calm; doesn't span the frame)
+  const horizA = elementAlpha(bp, 0.05, 0.18)
+  if (horizA > 0.01) {
+    const hy = cy + B * 0.64
+    ctx.strokeStyle = rgba(accent, horizA * 0.16)
+    ctx.lineWidth = 0.8
+    ctx.beginPath()
+    ctx.moveTo(cx - B * 0.92, hy)
+    ctx.lineTo(cx + B * 0.50, hy)
+    ctx.stroke()
+  }
+
+  // 2. Ensō — an incomplete hand-drawn brush circle; the focal element.
+  //    Drawn segment-by-segment with a brush envelope (taper at the lift) and an
+  //    organic radius wobble, revealed gradually across the session.
+  const ensoA = elementAlpha(bp, 0.10, 0.24)
+  if (ensoA > 0.01) {
+    const R = B * 0.50
+    const a0 = t * 0.012 * spd + 0.45        // slowly drifting brush-start angle
+    const gap = 0.55                          // radians left open (incomplete)
+    const sweep = Math.PI * 2 - gap
+    const reveal = Math.max(0, Math.min(1, (bp - 0.10) / 0.5))
+    const segs = 180
+    const drawn = Math.max(1, Math.floor(reveal * segs))
+    const wob = (ang: number): number =>
+      1 + 0.035 * Math.sin(ang * 3 + 0.6) + 0.02 * Math.cos(ang * 5 - 1.1)
+    ctx.lineCap = 'round'
+    for (let i = 0; i < drawn; i++) {
+      const f = i / segs
+      const ang = a0 + f * sweep
+      const ang2 = a0 + ((i + 1) / segs) * sweep
+      const x = ox + R * wob(ang) * Math.cos(ang)
+      const y = oy + R * wob(ang) * Math.sin(ang)
+      const x2 = ox + R * wob(ang2) * Math.cos(ang2)
+      const y2 = oy + R * wob(ang2) * Math.sin(ang2)
+      // brush envelope — fade in at the start, lift off near the end
+      const brush = Math.min(Math.min(1, f / 0.07), Math.min(1, (1 - f) / 0.16))
+      ctx.strokeStyle = rgba(accent, ensoA * (0.18 + 0.42 * brush))
+      ctx.lineWidth = 1.2 + 2.0 * Math.sin(f * Math.PI)   // brush pressure, thickest mid-stroke
+      ctx.beginPath()
+      ctx.moveTo(x, y)
+      ctx.lineTo(x2, y2)
+      ctx.stroke()
+    }
+    ctx.lineCap = 'butt'
+  }
+
+  // 3. Stones — a few small irregular forms, asymmetrically clustered (karesansui)
+  const stoneA = elementAlpha(bp, 0.46, 0.20)
+  if (stoneA > 0.01) {
+    const stones: [number, number, number, number, number][] = [
+      [cx + B * 0.44, cy + B * 0.30, B * 0.050, 0.66, 0.3],
+      [cx + B * 0.57, cy + B * 0.41, B * 0.030, 0.80, -0.2],
+      [cx - B * 0.60, cy + B * 0.24, B * 0.040, 0.62, 0.5],
+    ]
+    ctx.fillStyle = rgba(accent, stoneA * 0.13)
+    for (const [sx, sy, r, sq, rot] of stones) {
+      ctx.beginPath()
+      ctx.ellipse(sx, sy, r, r * sq, rot, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+
+  // 4. The single warm note — a small terracotta seal at the ensō's brush-start
+  const sealA = elementAlpha(bp, 0.30, 0.16)
+  if (sealA > 0.01) {
+    const pulse = 1 + 0.12 * Math.sin(t * 0.5)
+    const a0 = t * 0.012 * spd + 0.45
+    const px = ox + B * 0.50 * Math.cos(a0)
+    const py = oy + B * 0.50 * Math.sin(a0)
+    ctx.fillStyle = rgba(WABI_ACCENT, sealA * 0.85)
+    ctx.beginPath()
+    ctx.arc(px, py, 3.4 * pulse, 0, Math.PI * 2)
+    ctx.fill()
+  }
+}
+
 // ── MAIN COMPONENT ───────────────────────────────────────────────────────────
 
 export function Visualizer({
@@ -955,6 +1051,8 @@ export function Visualizer({
         drawGridVariant(ctx, cx, cy, B, t, spd, accent, orb, bp)
       } else if (variant === 'minimal') {
         drawMinimalVariant(ctx, cx, cy, B, t, spd, accent, orb, bp)
+      } else if (variant === 'wabi') {
+        drawWabiVariant(ctx, cx, cy, B, t, spd, accent, orb, bp)
       }
 
       onTickRef.current?.()
