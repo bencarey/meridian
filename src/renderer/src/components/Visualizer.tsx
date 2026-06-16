@@ -12,7 +12,7 @@ interface Particle {
   x: number; y: number; vx: number; vy: number; life: number; maxLife: number; size: number
 }
 
-type GeometryVariant = 'triangles' | 'circles' | 'mandala' | 'crystalline' | 'grid' | 'minimal' | 'wabi'
+type GeometryVariant = 'triangles' | 'mandala' | 'crystalline' | 'grid' | 'minimal' | 'wabi'
 
 interface VisualizerProps {
   bgColor: string
@@ -185,112 +185,6 @@ function drawTrianglesVariant(
     ctx.fillStyle = rgba(accent, dotA * 0.95)
     ctx.beginPath()
     ctx.arc(cx, cy, 3 * pulse, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.shadowBlur = 0
-  }
-}
-
-// ── VARIANT: CIRCLES (flow-state) — Vesica Piscis / Flower of Life ──────────
-
-function drawCirclesVariant(
-  ctx: CanvasRenderingContext2D,
-  cx: number, cy: number,
-  B: number, t: number, spd: number,
-  accent: string, orb: string,
-  bp: number
-): void {
-  const folR = B * 0.25
-
-  // Outer hexagon
-  const hexA = elementAlpha(bp, 0.06, 0.12)
-  if (hexA > 0.01) {
-    ctx.strokeStyle = rgba(accent, hexA * 0.22)
-    ctx.lineWidth = 0.7
-    ctx.setLineDash([])
-    drawPolygon(ctx, cx, cy, 6, B * 0.92, t * 0.005 * spd)
-    ctx.stroke()
-  }
-
-  // Flower of Life — primary element, reveals early
-  const folA = elementAlpha(bp, 0.06, 0.18) * 0.32
-  const folReveal = Math.max(0, Math.min(1, (bp - 0.06) / 0.20))
-  if (folA > 0.003) {
-    drawFlowerOfLife(ctx, cx, cy, folR, t * 0.010 * spd, orb, folA, folReveal)
-  }
-
-  // Vesica piscis overlapping rings at golden ratio distances
-  const vA = elementAlpha(bp, 0.28, 0.14) * 0.18
-  if (vA > 0.005) {
-    ctx.strokeStyle = rgba(accent, vA)
-    ctx.lineWidth = 0.5
-    ctx.setLineDash([])
-    const offsets = [folR, folR * PHI]
-    for (const off of offsets) {
-      for (let i = 0; i < 6; i++) {
-        const angle = (i / 6) * Math.PI * 2 + t * 0.008 * spd
-        ctx.beginPath()
-        ctx.arc(cx + off * Math.cos(angle), cy + off * Math.sin(angle), folR, 0, Math.PI * 2)
-        ctx.stroke()
-      }
-    }
-  }
-
-  // Inner hexagram
-  const stA = elementAlpha(bp, 0.44, 0.14)
-  if (stA > 0.01) {
-    ctx.shadowBlur = 12
-    ctx.shadowColor = rgba(accent, stA * 0.45)
-    ctx.strokeStyle = rgba(accent, stA * 0.50)
-    ctx.lineWidth = 1.0
-    ctx.setLineDash([])
-    drawPolygon(ctx, cx, cy, 3, B * 0.45, t * 0.012 * spd)
-    ctx.stroke()
-    drawPolygon(ctx, cx, cy, 3, B * 0.45, -t * 0.009 * spd + Math.PI / 3)
-    ctx.stroke()
-    ctx.shadowBlur = 0
-  }
-
-  // Concentric circles — breathing
-  const concA = elementAlpha(bp, 0.58, 0.14)
-  if (concA > 0.01) {
-    ctx.shadowBlur = 6
-    ctx.shadowColor = rgba(accent, concA * 0.3);
-    [B, B / PHI, B / (PHI * PHI), B / (PHI * PHI * PHI)].forEach((r, i) => {
-      const a = concA * (1 - i * 0.2) * 0.32
-      if (a < 0.006) return
-      ctx.strokeStyle = rgba(accent, a)
-      ctx.lineWidth = 0.6
-      ctx.setLineDash([])
-      ctx.beginPath()
-      ctx.arc(cx, cy, r, 0, Math.PI * 2)
-      ctx.stroke()
-    })
-    ctx.shadowBlur = 0
-  }
-
-  // 12 radial lines
-  const rayA = elementAlpha(bp, 0.70, 0.12) * 0.22
-  if (rayA > 0.005) {
-    ctx.strokeStyle = rgba(accent, rayA)
-    ctx.lineWidth = 0.4
-    for (let i = 0; i < 12; i++) {
-      const angle = (i / 12) * Math.PI * 2 + t * 0.004 * spd
-      ctx.beginPath()
-      ctx.moveTo(cx, cy)
-      ctx.lineTo(cx + B * 0.88 * Math.cos(angle), cy + B * 0.88 * Math.sin(angle))
-      ctx.stroke()
-    }
-  }
-
-  // Center dot
-  const dotA = elementAlpha(bp, 0.82, 0.12)
-  if (dotA > 0.01) {
-    const pulse = 1 + 0.35 * Math.sin(t * 1.1) * dotA
-    ctx.shadowBlur = 20 * dotA
-    ctx.shadowColor = rgba(accent, 0.9)
-    ctx.fillStyle = rgba(accent, dotA * 0.95)
-    ctx.beginPath()
-    ctx.arc(cx, cy, 3.5 * pulse, 0, Math.PI * 2)
     ctx.fill()
     ctx.shadowBlur = 0
   }
@@ -1041,8 +935,6 @@ export function Visualizer({
       ctx.setLineDash([])
       if (variant === 'triangles') {
         drawTrianglesVariant(ctx, cx, cy, B, t, spd, accent, orb, bp)
-      } else if (variant === 'circles') {
-        drawCirclesVariant(ctx, cx, cy, B, t, spd, accent, orb, bp)
       } else if (variant === 'mandala') {
         drawMandalaVariant(ctx, cx, cy, B, t, spd, accent, orb, bp)
       } else if (variant === 'crystalline') {

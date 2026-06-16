@@ -1,4 +1,4 @@
-export type PresetId = 'deep-focus' | 'flow-state' | 'creative' | 'power' | 'build' | 'minimalist' | 'wabi-sabi';
+export type PresetId = 'deep-focus' | 'creative' | 'power' | 'build' | 'minimalist' | 'wabi-sabi';
 export type DurationOption = 25 | 45 | 60 | 90 | 'meeting' | null;
 
 export interface Preset {
@@ -14,7 +14,7 @@ export interface Preset {
   scale: number[];     // frequencies in Hz
   rootNote: number;    // root note freq for sub-bass
   geometrySpeed?: number;
-  geometryVariant?: 'triangles' | 'circles' | 'mandala' | 'crystalline' | 'grid' | 'minimal' | 'wabi';
+  geometryVariant?: 'triangles' | 'mandala' | 'crystalline' | 'grid' | 'minimal' | 'wabi';
   theme?: 'dark' | 'light';   // visual theme — default 'dark'
   // Optional generative-audio overrides (defaults applied in useAudioEngine)
   padAttack?: number;         // s, note fade-in  (default 1.2)
@@ -47,24 +47,6 @@ export const PRESETS: Record<PresetId, Preset> = {
     orbColor: '#1A237E',
     accentColor: '#5C6BC0',
     particleColor: 'rgba(92,107,192,0.6)',
-  },
-  'flow-state': {
-    id: 'flow-state',
-    name: 'FLOW STATE',
-    label: 'FLOW',
-    description: 'Alpha waves for effortless flow',
-    binauralHz: 10,
-    carrierLeft: 200,
-    carrierRight: 210,
-    noiseType: 'pink',
-    droneHz: 98.00, // G2
-    scale: [196.00, 220.00, 246.94, 293.66, 329.63, 392.00, 440.00, 493.88],
-    rootNote: 196.00,
-    geometryVariant: 'circles',
-    bgColor: '#071209',
-    orbColor: '#1B5E20',
-    accentColor: '#66BB6A',
-    particleColor: 'rgba(102,187,106,0.5)',
   },
   'creative': {
     id: 'creative',
@@ -175,4 +157,4 @@ export const PRESETS: Record<PresetId, Preset> = {
   },
 };
 
-export const PRESET_ORDER: PresetId[] = ['deep-focus', 'flow-state', 'creative', 'power', 'build', 'minimalist', 'wabi-sabi'];
+export const PRESET_ORDER: PresetId[] = ['deep-focus', 'creative', 'power', 'build', 'minimalist', 'wabi-sabi'];
