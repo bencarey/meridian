@@ -14,6 +14,39 @@ interface Particle {
 
 type GeometryVariant = 'triangles' | 'mandala' | 'crystalline' | 'grid' | 'minimal' | 'wabi'
 
+// Per-session variation — rolled fresh on every BEGIN so no two sessions look
+// alike, while each mode keeps its signature geometry. Applied as shared
+// transforms (speed/direction, starting angle, slow precession + drift) plus a
+// build-pace jitter; the variant draw functions themselves are untouched.
+interface Variation {
+  spdMul: number    // rotation-speed multiplier
+  spdDir: number    // rotation direction (+1 / -1)
+  baseRot: number   // random starting orientation
+  precess: number   // slow continuous rotation of the whole form
+  driftR: number    // orbital drift radius (fraction of base)
+  driftFx: number   // drift frequency x
+  driftFy: number   // drift frequency y
+  driftPx: number   // drift phase x
+  driftPy: number   // drift phase y
+  buildMul: number  // build-window multiplier (varies how it forms)
+}
+
+function rollVariation(): Variation {
+  const rand = (a: number, b: number): number => a + Math.random() * (b - a)
+  return {
+    spdMul: rand(0.65, 1.5),
+    spdDir: Math.random() < 0.5 ? -1 : 1,
+    baseRot: Math.random() * Math.PI * 2,
+    precess: rand(-0.012, 0.012),
+    driftR: rand(0.02, 0.06),
+    driftFx: rand(0.04, 0.10),
+    driftFy: rand(0.04, 0.10),
+    driftPx: Math.random() * Math.PI * 2,
+    driftPy: Math.random() * Math.PI * 2,
+    buildMul: rand(0.7, 1.3),
+  }
+}
+
 interface VisualizerProps {
   bgColor: string
   orbColor: string
@@ -816,6 +849,8 @@ export function Visualizer({
   const buildProgressRef = useRef(0)
   const particlesRef = useRef<Particle[]>([])
   const rafRef = useRef<number | null>(null)
+  const prevPlayingRef = useRef(false)
+  const varyRef = useRef<Variation>(rollVariation())
 
   const bgColorRef = useRef(bgColor)
   const orbColorRef = useRef(orbColor)
@@ -868,12 +903,17 @@ export function Visualizer({
       const t = timeRef.current
       const playing = isPlayingRef.current
 
+      // Roll fresh variation on each BEGIN so every session differs.
+      if (playing && !prevPlayingRef.current) varyRef.current = rollVariation()
+      prevPlayingRef.current = playing
+      const vary = varyRef.current
+
       // Build geometry in over a gentle window so elements (and finally the
       // center bindu, revealed at bp ~0.8) emerge after BEGIN — then hold for
       // the rest of the session. Capped so the centerpiece always appears
-      // within ~90s rather than being pushed to ~80% of a long session.
+      // within ~90s, with a per-session jitter so the build differs each time.
       const dur = sessionDurationRef.current ?? 25 * 60
-      const buildSeconds = Math.min(dur, 90)
+      const buildSeconds = Math.min(dur, 90) * vary.buildMul
       const bpSpeed = playing ? 1 / (buildSeconds * 60) : -1 / 240
       buildProgressRef.current = Math.max(0, Math.min(1, buildProgressRef.current + bpSpeed))
       const bp = buildProgressRef.current
@@ -933,21 +973,33 @@ export function Visualizer({
         ctx.fill()
       }
 
-      // Dispatch to variant
+      // Dispatch to variant — wrapped in the per-session transform so the whole
+      // form keeps a unique orientation, slowly precesses, and gently orbits the
+      // center, at a session-specific speed/direction. The variant artwork is
+      // unchanged; only how it moves and forms differs each time.
+      const effSpd = spd * vary.spdMul * vary.spdDir
+      const driftX = vary.driftR * base * Math.cos(t * vary.driftFx + vary.driftPx)
+      const driftY = vary.driftR * base * Math.sin(t * vary.driftFy + vary.driftPy)
       ctx.setLineDash([])
+      ctx.save()
+      ctx.translate(driftX, driftY)
+      ctx.translate(cx, cy)
+      ctx.rotate(vary.baseRot + t * vary.precess)
+      ctx.translate(-cx, -cy)
       if (variant === 'triangles') {
-        drawTrianglesVariant(ctx, cx, cy, B, t, spd, accent, orb, bp)
+        drawTrianglesVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp)
       } else if (variant === 'mandala') {
-        drawMandalaVariant(ctx, cx, cy, B, t, spd, accent, orb, bp)
+        drawMandalaVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp)
       } else if (variant === 'crystalline') {
-        drawCrystallineVariant(ctx, cx, cy, B, t, spd, accent, orb, bp)
+        drawCrystallineVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp)
       } else if (variant === 'grid') {
-        drawGridVariant(ctx, cx, cy, B, t, spd, accent, orb, bp)
+        drawGridVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp)
       } else if (variant === 'minimal') {
-        drawMinimalVariant(ctx, cx, cy, B, t, spd, accent, orb, bp)
+        drawMinimalVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp)
       } else if (variant === 'wabi') {
-        drawWabiVariant(ctx, cx, cy, B, t, spd, accent, orb, bp)
+        drawWabiVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp)
       }
+      ctx.restore()
 
       onTickRef.current?.()
       rafRef.current = requestAnimationFrame(animate)
