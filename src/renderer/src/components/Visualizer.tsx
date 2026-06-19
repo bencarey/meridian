@@ -29,6 +29,7 @@ interface Variation {
   driftPx: number   // drift phase x
   driftPy: number   // drift phase y
   buildMul: number  // build-window multiplier (varies how it forms)
+  struct: number[]  // stable 0..1 rolls each variant maps to its own counts/toggles
 }
 
 function rollVariation(): Variation {
@@ -44,7 +45,13 @@ function rollVariation(): Variation {
     driftPx: Math.random() * Math.PI * 2,
     driftPy: Math.random() * Math.PI * 2,
     buildMul: rand(0.7, 1.3),
+    struct: Array.from({ length: 6 }, () => Math.random()),
   }
+}
+
+// Pick the i-th option from `opts` using stable session roll st[idx]
+function pick<T>(st: number[], idx: number, opts: T[]): T {
+  return opts[Math.min(opts.length - 1, Math.floor((st[idx] ?? 0) * opts.length))]
 }
 
 interface VisualizerProps {
@@ -158,10 +165,11 @@ function drawTrianglesVariant(
   cx: number, cy: number,
   B: number, t: number, spd: number,
   accent: string, _orb: string,
-  bp: number
+  bp: number, st: number[]
 ): void {
-  // 5 nested triangle pairs (up + down), innermost brightest — bindu build
-  const pairs = 5
+  // Nested triangle pairs (up + down), innermost brightest — bindu build.
+  // Count varies per session (4–6) for a different Sri Yantra each time.
+  const pairs = 4 + Math.floor((st[0] ?? 0) * 3)
   for (let i = 0; i < pairs; i++) {
     const revThreshold = 0.08 + i * 0.12
     const a = elementAlpha(bp, revThreshold, 0.14)
@@ -261,7 +269,7 @@ function drawMandalaVariant(
   cx: number, cy: number,
   B: number, t: number, spd: number,
   accent: string, _orb: string,
-  bp: number
+  bp: number, st: number[]
 ): void {
   // Outer ring: 12 petals
   const r3A = elementAlpha(bp, 0.08, 0.16)
@@ -269,7 +277,7 @@ function drawMandalaVariant(
     ctx.lineWidth = 0.6
     ctx.shadowBlur = 6
     ctx.shadowColor = rgba(accent, r3A * 0.3)
-    drawPetalRing(ctx, cx, cy, 12, B * 0.55, B * 0.88, t * 0.004 * spd, accent, r3A * 0.28)
+    drawPetalRing(ctx, cx, cy, pick(st, 0, [10, 12, 14, 16]), B * 0.55, B * 0.88, t * 0.004 * spd, accent, r3A * 0.28)
     ctx.shadowBlur = 0
   }
 
@@ -279,7 +287,7 @@ function drawMandalaVariant(
     ctx.lineWidth = 0.7
     ctx.shadowBlur = 8
     ctx.shadowColor = rgba(accent, r2A * 0.35)
-    drawPetalRing(ctx, cx, cy, 8, B * 0.32, B * 0.58, -t * 0.007 * spd, accent, r2A * 0.40)
+    drawPetalRing(ctx, cx, cy, pick(st, 1, [6, 8, 10]), B * 0.32, B * 0.58, -t * 0.007 * spd, accent, r2A * 0.40)
     ctx.shadowBlur = 0
   }
 
@@ -289,7 +297,7 @@ function drawMandalaVariant(
     ctx.lineWidth = 0.9
     ctx.shadowBlur = 12
     ctx.shadowColor = rgba(accent, r1A * 0.45)
-    drawPetalRing(ctx, cx, cy, 6, B * 0.14, B * 0.34, t * 0.011 * spd, accent, r1A * 0.52)
+    drawPetalRing(ctx, cx, cy, pick(st, 2, [5, 6, 7, 8]), B * 0.14, B * 0.34, t * 0.011 * spd, accent, r1A * 0.52)
     ctx.shadowBlur = 0
   }
 
@@ -335,8 +343,9 @@ function drawMandalaVariant(
   if (rayA > 0.005) {
     ctx.strokeStyle = rgba(accent, rayA)
     ctx.lineWidth = 0.35
-    for (let i = 0; i < 24; i++) {
-      const angle = (i / 24) * Math.PI * 2 + t * 0.003 * spd
+    const rays = pick(st, 3, [18, 24, 30, 36])
+    for (let i = 0; i < rays; i++) {
+      const angle = (i / rays) * Math.PI * 2 + t * 0.003 * spd
       ctx.beginPath()
       ctx.moveTo(cx + B * 0.14 * Math.cos(angle), cy + B * 0.14 * Math.sin(angle))
       ctx.lineTo(cx + B * 0.90 * Math.cos(angle), cy + B * 0.90 * Math.sin(angle))
@@ -383,7 +392,7 @@ function drawCrystallineVariant(
   cx: number, cy: number,
   B: number, t: number, spd: number,
   accent: string, _orb: string,
-  bp: number
+  bp: number, st: number[]
 ): void {
   // Outer circle + 12-gon
   const outerA = elementAlpha(bp, 0.06, 0.12)
@@ -458,8 +467,8 @@ function drawCrystallineVariant(
     ctx.shadowBlur = 0
   }
 
-  // Inner nested octahedron (smaller, rotates opposite)
-  const innerA = elementAlpha(bp, 0.42, 0.18)
+  // Inner nested octahedron (smaller, rotates opposite) — present ~2/3 of sessions
+  const innerA = (st[1] ?? 0) < 0.66 ? elementAlpha(bp, 0.42, 0.18) : 0
   if (innerA > 0.01) {
     const rotY2 = -t * 0.018 * spd
     const rotX2 = t * 0.010 * spd + 1.0
@@ -485,8 +494,9 @@ function drawCrystallineVariant(
   if (spikeA > 0.005) {
     ctx.strokeStyle = rgba(accent, spikeA)
     ctx.lineWidth = 0.5
-    for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2 + t * 0.010 * spd
+    const spikes = pick(st, 0, [6, 8, 10, 12])
+    for (let i = 0; i < spikes; i++) {
+      const angle = (i / spikes) * Math.PI * 2 + t * 0.010 * spd
       ctx.beginPath()
       ctx.moveTo(cx, cy)
       ctx.lineTo(cx + B * 0.95 * Math.cos(angle), cy + B * 0.95 * Math.sin(angle))
@@ -527,7 +537,7 @@ function drawGridVariant(
   cx: number, cy: number,
   B: number, t: number, spd: number,
   accent: string, orb: string,
-  bp: number
+  bp: number, st: number[]
 ): void {
   // Circuit-board grid — square lattice revealed early
   const gridA = elementAlpha(bp, 0.04, 0.18) * 0.09
@@ -567,7 +577,8 @@ function drawGridVariant(
   if (diamondA > 0.01) {
     ctx.shadowBlur = 8
     ctx.shadowColor = rgba(accent, diamondA * 0.3)
-    const sizes = [B * 0.70, B * 0.48, B * 0.28]
+    const dn = 2 + Math.floor((st[0] ?? 0) * 3)   // 2–4 nested diamonds
+    const sizes = Array.from({ length: dn }, (_, i) => B * (0.70 - i * 0.18))
     sizes.forEach((r, i) => {
       ctx.strokeStyle = rgba(accent, diamondA * (0.22 - i * 0.05))
       ctx.lineWidth = 0.7
@@ -650,7 +661,7 @@ function drawMinimalVariant(
   cx: number, cy: number,
   B: number, t: number, spd: number,
   accent: string, _orb: string,
-  bp: number
+  bp: number, st: number[]
 ): void {
   ctx.setLineDash([])
   ctx.shadowBlur = 0
@@ -684,7 +695,7 @@ function drawMinimalVariant(
   // 3. Tick ring (Braun clock face) — slow rotation
   const tickA = elementAlpha(bp, 0.22, 0.16)
   if (tickA > 0.01) {
-    const ticks = 60
+    const ticks = pick(st, 0, [48, 60, 72])
     const rot = t * 0.004 * spd
     ctx.lineWidth = 0.6
     for (let i = 0; i < ticks; i++) {
@@ -751,7 +762,7 @@ function drawWabiVariant(
   cx: number, cy: number,
   B: number, t: number, spd: number,
   accent: string, _orb: string,
-  bp: number
+  bp: number, st: number[]
 ): void {
   ctx.setLineDash([])
   ctx.shadowBlur = 0
@@ -779,7 +790,7 @@ function drawWabiVariant(
   if (ensoA > 0.01) {
     const R = B * 0.50
     const a0 = t * 0.012 * spd + 0.45        // slowly drifting brush-start angle
-    const gap = 0.55                          // radians left open (incomplete)
+    const gap = 0.4 + (st[0] ?? 0) * 0.55     // radians left open (incomplete) — varies the ensō each time
     const sweep = Math.PI * 2 - gap
     const reveal = Math.max(0, Math.min(1, (bp - 0.10) / 0.5))
     const segs = 180
@@ -810,11 +821,12 @@ function drawWabiVariant(
   // 3. Stones — a few small irregular forms, asymmetrically clustered (karesansui)
   const stoneA = elementAlpha(bp, 0.46, 0.20)
   if (stoneA > 0.01) {
-    const stones: [number, number, number, number, number][] = [
+    const allStones: [number, number, number, number, number][] = [
       [cx + B * 0.44, cy + B * 0.30, B * 0.050, 0.66, 0.3],
       [cx + B * 0.57, cy + B * 0.41, B * 0.030, 0.80, -0.2],
       [cx - B * 0.60, cy + B * 0.24, B * 0.040, 0.62, 0.5],
     ]
+    const stones = allStones.slice(0, 2 + Math.floor((st[1] ?? 0) * 2))  // 2 or 3 stones
     ctx.fillStyle = rgba(accent, stoneA * 0.13)
     for (const [sx, sy, r, sq, rot] of stones) {
       ctx.beginPath()
@@ -987,17 +999,17 @@ export function Visualizer({
       ctx.rotate(vary.baseRot + t * vary.precess)
       ctx.translate(-cx, -cy)
       if (variant === 'triangles') {
-        drawTrianglesVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp)
+        drawTrianglesVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp, vary.struct)
       } else if (variant === 'mandala') {
-        drawMandalaVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp)
+        drawMandalaVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp, vary.struct)
       } else if (variant === 'crystalline') {
-        drawCrystallineVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp)
+        drawCrystallineVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp, vary.struct)
       } else if (variant === 'grid') {
-        drawGridVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp)
+        drawGridVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp, vary.struct)
       } else if (variant === 'minimal') {
-        drawMinimalVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp)
+        drawMinimalVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp, vary.struct)
       } else if (variant === 'wabi') {
-        drawWabiVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp)
+        drawWabiVariant(ctx, cx, cy, B, t, effSpd, accent, orb, bp, vary.struct)
       }
       ctx.restore()
 
