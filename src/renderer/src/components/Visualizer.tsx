@@ -868,11 +868,13 @@ export function Visualizer({
       const t = timeRef.current
       const playing = isPlayingRef.current
 
-      // Build geometry over the full session duration so new elements
-      // emerge throughout — not fully built in 18 seconds then static.
-      // At ~60 fps: sessionDurationSeconds * 60 frames = full build.
+      // Build geometry in over a gentle window so elements (and finally the
+      // center bindu, revealed at bp ~0.8) emerge after BEGIN — then hold for
+      // the rest of the session. Capped so the centerpiece always appears
+      // within ~90s rather than being pushed to ~80% of a long session.
       const dur = sessionDurationRef.current ?? 25 * 60
-      const bpSpeed = playing ? 1 / (dur * 60) : -1 / 240
+      const buildSeconds = Math.min(dur, 90)
+      const bpSpeed = playing ? 1 / (buildSeconds * 60) : -1 / 240
       buildProgressRef.current = Math.max(0, Math.min(1, buildProgressRef.current + bpSpeed))
       const bp = buildProgressRef.current
 
