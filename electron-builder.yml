@@ -31,6 +31,8 @@ mac:
 extraResources:
   - from: resources/meridian-cal
     to: meridian-cal
+  - from: resources/icon.png
+    to: icon.png
 dmg:
   artifactName: Meridian-${version}.${ext}
   title: Meridian ${version}

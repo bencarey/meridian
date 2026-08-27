@@ -76,6 +76,84 @@ function createWhiteNoise(ctx: AudioContext): AudioBufferSourceNode {
   return source
 }
 
+// ── Trap-style beat layer (808 kick, hats, clap) ───────────────────────────
+
+function makeSaturationCurve(amount: number): Float32Array {
+  const samples = 256
+  const curve = new Float32Array(samples)
+  for (let i = 0; i < samples; i++) {
+    const x = (i * 2) / samples - 1
+    curve[i] = Math.tanh(amount * x)
+  }
+  return curve
+}
+
+function triggerKick808(ctx: AudioContext, master: GainNode, satCurve: Float32Array, time: number): void {
+  const osc = ctx.createOscillator()
+  osc.type = 'sine'
+  osc.frequency.setValueAtTime(150, time)
+  osc.frequency.exponentialRampToValueAtTime(46, time + 0.09)
+
+  const shaper = ctx.createWaveShaper()
+  shaper.curve = satCurve
+
+  const gain = ctx.createGain()
+  gain.gain.setValueAtTime(0, time)
+  gain.gain.linearRampToValueAtTime(0.9, time + 0.004)
+  gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.55)
+
+  osc.connect(shaper)
+  shaper.connect(gain)
+  gain.connect(master)
+  osc.start(time)
+  osc.stop(time + 0.6)
+}
+
+function triggerHat(ctx: AudioContext, buffer: AudioBuffer, master: GainNode, time: number, accent: boolean): void {
+  const src = ctx.createBufferSource()
+  src.buffer = buffer
+  const filter = ctx.createBiquadFilter()
+  filter.type = 'highpass'
+  filter.frequency.value = 7000 + Math.random() * 2000
+
+  const gain = ctx.createGain()
+  const peak = accent ? 0.22 : 0.12
+  const decay = accent ? 0.09 : 0.045
+  gain.gain.setValueAtTime(0, time)
+  gain.gain.linearRampToValueAtTime(peak, time + 0.002)
+  gain.gain.exponentialRampToValueAtTime(0.0001, time + decay)
+
+  src.connect(filter)
+  filter.connect(gain)
+  gain.connect(master)
+  src.start(time)
+  src.stop(time + decay + 0.02)
+}
+
+function triggerClap(ctx: AudioContext, buffer: AudioBuffer, master: GainNode, time: number): void {
+  const offsets = [0, 0.012, 0.024]
+  offsets.forEach((off, i) => {
+    const src = ctx.createBufferSource()
+    src.buffer = buffer
+    const filter = ctx.createBiquadFilter()
+    filter.type = 'bandpass'
+    filter.frequency.value = 1500
+    filter.Q.value = 1.2
+
+    const gain = ctx.createGain()
+    const peak = 0.18 - i * 0.02
+    gain.gain.setValueAtTime(0, time + off)
+    gain.gain.linearRampToValueAtTime(peak, time + off + 0.002)
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + off + 0.09)
+
+    src.connect(filter)
+    filter.connect(gain)
+    gain.connect(master)
+    src.start(time + off)
+    src.stop(time + off + 0.11)
+  })
+}
+
 export function useAudioEngine(): AudioEngine {
   const [isPlaying, setIsPlaying] = useState(false)
   const ctxRef = useRef<AudioContext | null>(null)
@@ -86,12 +164,17 @@ export function useAudioEngine(): AudioEngine {
   const reverbRef = useRef<ConvolverNode | null>(null)
   const padFilterRef = useRef<BiquadFilterNode | null>(null)
   const lfoRef = useRef<OscillatorNode | null>(null)
+  const beatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const stopAll = useCallback(() => {
     isRunningRef.current = false
     if (schedulerTimerRef.current !== null) {
       clearTimeout(schedulerTimerRef.current)
       schedulerTimerRef.current = null
+    }
+    if (beatIntervalRef.current !== null) {
+      clearInterval(beatIntervalRef.current)
+      beatIntervalRef.current = null
     }
     if (ctxRef.current && masterGainRef.current) {
       const gain = masterGainRef.current
@@ -148,7 +231,9 @@ export function useAudioEngine(): AudioEngine {
         }
       }
 
-      const holdTime = 2 + Math.random() * 2
+      const holdMin = preset.padHoldMin ?? 2
+      const holdMax = preset.padHoldMax ?? 4
+      const holdTime = holdMin + Math.random() * Math.max(0, holdMax - holdMin)
       const attackTime = preset.padAttack ?? 1.2
       const releaseTime = preset.padRelease ?? 3.0
 
@@ -196,6 +281,56 @@ export function useAudioEngine(): AudioEngine {
     },
     [playPadNote]
   )
+
+  const startBeatEngine = useCallback((ctx: AudioContext, preset: Preset, master: GainNode) => {
+    const bpm = preset.beatBpm
+    if (!bpm) return
+
+    const beatGain = ctx.createGain()
+    beatGain.gain.value = preset.beatGain ?? 0.4
+    beatGain.connect(master)
+
+    const satCurve = makeSaturationCurve(1.8)
+
+    // Shared noise bed for hats/claps — one-shot buffer sources reuse it per hit
+    const noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate)
+    const noiseData = noiseBuf.getChannelData(0)
+    for (let i = 0; i < noiseData.length; i++) noiseData[i] = Math.random() * 2 - 1
+
+    const stepDuration = 60 / bpm / 4 // 16th notes
+    const kickBaseSteps = [0, 3, 6, 10]
+    let currentStep = 0
+    let nextStepTime = ctx.currentTime + 0.1
+    let barKickSteps = new Set(kickBaseSteps)
+
+    beatIntervalRef.current = setInterval(() => {
+      if (!isRunningRef.current) return
+      const scheduleAhead = 0.12
+      while (nextStepTime < ctx.currentTime + scheduleAhead) {
+        if (currentStep === 0) {
+          // Regenerate per-bar kick variation for generative feel
+          barKickSteps = new Set(kickBaseSteps)
+          if (Math.random() < 0.3) barKickSteps.add(13)
+          if (Math.random() < 0.15) barKickSteps.delete(6)
+        }
+
+        if (barKickSteps.has(currentStep)) {
+          triggerKick808(ctx, beatGain, satCurve, nextStepTime)
+        }
+        if (currentStep === 8) {
+          triggerClap(ctx, noiseBuf, beatGain, nextStepTime)
+        }
+        if (currentStep % 2 === 0) {
+          triggerHat(ctx, noiseBuf, beatGain, nextStepTime, currentStep % 4 === 0)
+        } else if (Math.random() < 0.55) {
+          triggerHat(ctx, noiseBuf, beatGain, nextStepTime, false)
+        }
+
+        currentStep = (currentStep + 1) % 16
+        nextStepTime += stepDuration
+      }
+    }, 25)
+  }, [])
 
   const start = useCallback(
     async (preset: Preset, volume: number): Promise<void> => {
@@ -300,9 +435,11 @@ export function useAudioEngine(): AudioEngine {
       playPadNote(ctx, preset, reverb, master)
       scheduleNextNote(ctx, preset, reverb, master)
 
+      startBeatEngine(ctx, preset, master)
+
       setIsPlaying(true)
     },
-    [stopAll, playPadNote, scheduleNextNote]
+    [stopAll, playPadNote, scheduleNextNote, startBeatEngine]
   )
 
   const stop = useCallback(() => {

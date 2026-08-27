@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from 'electron'
 import { join } from 'path'
 import { exec } from 'child_process'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -6,7 +6,56 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 // ── APP SETUP ─────────────────────────────────────────────────────────────────
 
 let mainWindow: BrowserWindow | null = null
+let tray: Tray | null = null
 let forceQuit = false
+let isPlaying = false
+
+// Kept in sync with PRESET_ORDER / Preset.name in src/renderer/src/types/audio.ts
+const TRAY_PRESETS: { id: string; label: string }[] = [
+  { id: 'deep-focus', label: 'DEEP FOCUS' },
+  { id: 'creative', label: 'CREATIVE' },
+  { id: 'power', label: 'POWER' },
+  { id: 'build', label: 'BUILD' },
+  { id: 'minimalist', label: 'MINIMALIST' },
+  { id: 'wabi-sabi', label: 'WABI-SABI' },
+]
+let activePresetId = TRAY_PRESETS[0].id
+
+function buildTrayMenu(): Menu {
+  return Menu.buildFromTemplate([
+    ...TRAY_PRESETS.map((preset) => ({
+      label: preset.label,
+      type: 'radio' as const,
+      checked: preset.id === activePresetId,
+      click: () => mainWindow?.webContents.send('tray-select-preset', preset.id),
+    })),
+    { type: 'separator' as const },
+    {
+      label: isPlaying ? 'Pause' : 'Play',
+      click: () => mainWindow?.webContents.send('tray-toggle-play'),
+    },
+    { type: 'separator' as const },
+    {
+      label: 'Show Meridian',
+      click: () => {
+        mainWindow?.show()
+        mainWindow?.focus()
+      },
+    },
+    { type: 'separator' as const },
+    {
+      label: 'Quit Meridian',
+      click: () => {
+        forceQuit = true
+        app.quit()
+      },
+    },
+  ])
+}
+
+function updateTray(): void {
+  tray?.setContextMenu(buildTrayMenu())
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -58,9 +107,27 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  // ── Menu bar tray ───────────────────────────────────────────────────────
+  const trayIconPath = is.dev
+    ? join(__dirname, '../../resources/icon.png')
+    : join(process.resourcesPath, 'icon.png')
+  tray = new Tray(nativeImage.createFromPath(trayIconPath).resize({ width: 18, height: 18 }))
+  tray.setToolTip('Meridian')
+  updateTray()
+
   // ── IPC handlers ────────────────────────────────────────────────────────
   ipcMain.on('hide-window', () => {
     mainWindow?.hide()
+  })
+
+  ipcMain.on('set-playing', (_event, playing: boolean) => {
+    isPlaying = playing
+    updateTray()
+  })
+
+  ipcMain.on('set-active-preset', (_event, presetId: string) => {
+    activePresetId = presetId
+    updateTray()
   })
 
   ipcMain.handle('get-next-meeting', async () => {

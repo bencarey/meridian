@@ -175,6 +175,11 @@ function App(): React.JSX.Element {
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Tell the menu bar tray which preset is active on launch
+  useEffect(() => {
+    window.api?.setActivePreset(activePresetId)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Idle detection
   const resetIdleTimer = useCallback(() => {
     setControlsVisible(true)
@@ -259,6 +264,7 @@ function App(): React.JSX.Element {
     setActivePresetId(id)
     startPresetTransition(preset)
     if (audio.isPlaying) { audio.stop(); setTimeout(() => audio.start(preset, volume), 200) }
+    window.api?.setActivePreset(id)
   }, [audio, volume, startPresetTransition])
 
   const handleDurationChange = useCallback(async (d: DurationOption) => {
@@ -292,6 +298,18 @@ function App(): React.JSX.Element {
     setVolumeState(v)
     audio.setVolume(v)
   }, [audio])
+
+  // Menu bar tray drives these same handlers — keep refs so the once-registered
+  // IPC listeners below always call the latest closures, not stale ones.
+  const handlePresetChangeRef = useRef(handlePresetChange)
+  handlePresetChangeRef.current = handlePresetChange
+  const handleTogglePlayRef = useRef(handleTogglePlay)
+  handleTogglePlayRef.current = handleTogglePlay
+
+  useEffect(() => {
+    window.api?.onTraySelectPreset((id) => handlePresetChangeRef.current(id as PresetId))
+    window.api?.onTrayTogglePlay(() => handleTogglePlayRef.current())
+  }, [])
 
   const headerTime = (() => {
     if (audio.isPlaying) return timer.secondsRemaining !== null ? formatTime(timer.secondsRemaining) : '∞'

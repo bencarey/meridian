@@ -19,10 +19,14 @@ export interface Preset {
   // Optional generative-audio overrides (defaults applied in useAudioEngine)
   padAttack?: number;         // s, note fade-in  (default 1.2)
   padRelease?: number;        // s, note fade-out (default 3.0)
+  padHoldMin?: number;        // s, min time note sustains at full gain (default 2)
+  padHoldMax?: number;        // s, max time note sustains at full gain (default 4)
   noteDelayMin?: number;      // ms, min gap between pad notes (default 3000)
   noteDelayMax?: number;      // ms, max gap between pad notes (default 12000)
   noiseGain?: number;         // colored-noise level (default 0.12)
   reverbMix?: number;         // reverb send level  (default 0.6)
+  beatBpm?: number;           // if set, layers a generative kick/hat/clap groove at this tempo
+  beatGain?: number;          // overall gain for the beat layer (default 0.4)
   bgColor: string;
   orbColor: string;
   accentColor: string;
@@ -60,6 +64,14 @@ export const PRESETS: Record<PresetId, Preset> = {
     droneHz: 110.00, // A2
     scale: [220.00, 261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33],
     rootNote: 220.00,
+    padAttack: 0.2,          // quick bloom — flowing but lively, not a slow wash
+    padRelease: 1.0,
+    padHoldMin: 0.6,
+    padHoldMax: 1.6,
+    noteDelayMin: 450,       // dense, uptempo note stream (Endel-style study/focus flow)
+    noteDelayMax: 1600,
+    reverbMix: 0.4,          // drier than the default wash, more forward motion
+    geometrySpeed: 1.3,
     geometryVariant: 'mandala',
     bgColor: '#0F0714',
     orbColor: '#4A148C',
@@ -78,6 +90,16 @@ export const PRESETS: Record<PresetId, Preset> = {
     droneHz: 82.41, // E2
     scale: [164.81, 196.00, 220.00, 246.94, 293.66, 329.63, 392.00, 440.00],
     rootNote: 164.81,
+    padAttack: 0.12,         // plucky, percussive pad hits
+    padRelease: 0.7,
+    padHoldMin: 0.4,
+    padHoldMax: 1.0,
+    noteDelayMin: 350,       // dense and driving
+    noteDelayMax: 1200,
+    reverbMix: 0.35,
+    beatBpm: 140,            // trap-style kick/hat/clap groove — strong 808 bass
+    beatGain: 0.42,
+    geometrySpeed: 1.4,
     geometryVariant: 'crystalline',
     bgColor: '#0F0704',
     orbColor: '#BF360C',
