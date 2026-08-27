@@ -27,7 +27,7 @@ Each preset generates binaural beats at the target frequency, a pentatonic pad s
 
 ## Install
 
-1. Download `Meridian-1.0.0.dmg` from the [latest release](../../releases/latest)
+1. Download `Meridian-1.1.8.dmg` from the [latest release](../../releases/latest)
 2. Open the DMG and drag **Meridian** to **Applications**
 3. Open **Terminal** and run:
    ```bash
@@ -59,4 +59,4 @@ npm run dev
 npm run build:mac
 ```
 
-Output: `dist/Meridian-1.0.0.dmg`
+Output: `dist/Meridian-1.1.8.dmg`
