@@ -15,23 +15,39 @@
 #   (the stripped copy signs cleanly), then build the DMG from that copy.
 #   Ref: https://github.com/electron-userland/electron-builder/issues/8149
 #
-# Note: this produces a functional drag-to-Applications DMG via hdiutil; it does
-# not use electron-builder's custom DMG background (that path requires signing to
-# succeed in the bundle, which is exactly what fails here).
+# The DMG is still styled to match electron-builder.yml's `dmg:` block (background,
+# window size, icon positions) — via a Finder/AppleScript pass on a temporary
+# read-write image, done *after* the app is already signed. Finder touching an
+# already-signed app doesn't re-trigger the provenance problem above, since nothing
+# re-signs it afterward.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 PRODUCT="Meridian"
 VERSION="$(node -p "require('./package.json').version")"
+VOL_NAME="${PRODUCT} ${VERSION}"
 ENTITLEMENTS="build/entitlements.mac.plist"
 APP_OUT="dist/mac-arm64/${PRODUCT}.app"
 DMG="dist/${PRODUCT}-${VERSION}.dmg"
+BACKGROUND="build/dmg_background.png"
+WINDOW_W=540
+WINDOW_H=380
+APP_X=150
+APP_Y=190
+APPLINK_X=390
+APPLINK_Y=190
+ICON_SIZE=96
 
 WORK_DIR="$(mktemp -d)"
 STAGE_DIR="$(mktemp -d)"
 WORK_APP="${WORK_DIR}/${PRODUCT}.app"
-cleanup() { rm -rf "$WORK_DIR" "$STAGE_DIR"; }
+RW_DMG="${WORK_DIR}/${PRODUCT}-rw.dmg"
+DEVICE=""
+cleanup() {
+  if [ -n "$DEVICE" ]; then hdiutil detach "$DEVICE" -quiet 2>/dev/null || true; fi
+  rm -rf "$WORK_DIR" "$STAGE_DIR"
+}
 trap cleanup EXIT
 
 echo "▸ Compiling (electron-vite build)…"
@@ -48,11 +64,51 @@ echo "▸ Ad-hoc signing the stripped copy…"
 codesign --deep --force --options runtime --entitlements "$ENTITLEMENTS" --sign - "$WORK_APP"
 codesign --verify --deep --strict --verbose=1 "$WORK_APP"
 
-echo "▸ Assembling DMG (hdiutil)…"
+echo "▸ Assembling styled DMG (Finder-arranged, hdiutil)…"
 cp -R "$WORK_APP" "$STAGE_DIR/"
 ln -s /Applications "$STAGE_DIR/Applications"
+mkdir "$STAGE_DIR/.background"
+cp "$BACKGROUND" "$STAGE_DIR/.background/background.png"
+
+hdiutil create -volname "$VOL_NAME" -srcfolder "$STAGE_DIR" -ov -fs HFS+ -format UDRW -size 300m "$RW_DMG" >/dev/null
+
+## hdiutil auto-mounts under /Volumes/<volname> here — an explicit -mountpoint
+## makes Finder display the mountpoint dir's basename instead of the volume
+## label, which breaks `tell disk "$VOL_NAME"` below.
+ATTACH_OUT="$(hdiutil attach "$RW_DMG" -noautoopen)"
+DEVICE="$(echo "$ATTACH_OUT" | grep -Eo '/dev/disk[0-9]+' | head -1)"
+sleep 1
+
+WINDOW_RIGHT=$((100 + WINDOW_W))
+WINDOW_BOTTOM=$((100 + WINDOW_H))
+
+osascript <<APPLESCRIPT
+tell application "Finder"
+  tell disk "${VOL_NAME}"
+    open
+    delay 1
+    set current view of container window to icon view
+    set toolbar visible of container window to false
+    set statusbar visible of container window to false
+    set the bounds of container window to {100, 100, ${WINDOW_RIGHT}, ${WINDOW_BOTTOM}}
+    set theViewOptions to the icon view options of container window
+    set arrangement of theViewOptions to not arranged
+    set icon size of theViewOptions to ${ICON_SIZE}
+    set background picture of theViewOptions to file ".background:background.png"
+    set position of item "${PRODUCT}.app" of container window to {${APP_X}, ${APP_Y}}
+    set position of item "Applications" of container window to {${APPLINK_X}, ${APPLINK_Y}}
+    update without registering applications
+    delay 2
+    close
+  end tell
+end tell
+APPLESCRIPT
+
+hdiutil detach "$DEVICE" -quiet
+DEVICE=""
+
 rm -f "$DMG"
-hdiutil create -volname "${PRODUCT} ${VERSION}" -srcfolder "$STAGE_DIR" -ov -format UDZO "$DMG" >/dev/null
+hdiutil convert "$RW_DMG" -format UDZO -ov -o "$DMG" >/dev/null
 
 # Leave a signed app in dist/mac-arm64 too (handy for local install).
 rm -rf "$APP_OUT"
